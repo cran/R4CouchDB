@@ -1,0 +1,53 @@
+\name{cdbMakeDB}
+\alias{cdbMakeDB}
+\title{Creates a new database}
+\usage{
+  cdbMakeDB(cdb)
+}
+\arguments{
+  \item{cdb}{The \code{cdb} have to provide
+  \code{cdb$serverName}, \code{cdb$port} and
+  \code{cdb$newDBName}}
+}
+\value{
+  \item{cdb}{The CouchDB answer is stored in
+  \code{cdb$res}. Any problems on the R side are reported
+  in \code{cdb$error} }
+}
+\description{
+  The name of the new database is taken from
+  \code{cdb$newDBName}.
+}
+\details{
+  The work is done by \code{getURL()} from Duncans RCurl
+  package.
+
+  After creating the new database the function makes the
+  shortcut \code{cdb$DBName <- cdb$newDBName} so that
+  further operations happen on the new created database.
+  Finaly \code{cdb$newDBName <- ""}.
+}
+\note{
+  The convention for database naming should be implemented.
+}
+\examples{
+\dontrun{
+ccc               <- cdbIni()
+ccc$newDBName     <- "r4couchdb_db"
+ccc               <- cdbMakeDB(ccc)
+ccc$res
+ccc$removeDBName  <- ccc$DBName
+cdbRemoveDB(ccc)$res
+}
+}
+\author{
+  wactbprot
+}
+\references{
+  \url{ http://couchdb.apache.org/ }
+}
+\seealso{
+  \code{cdbUpdateDoc}
+}
+\keyword{misc}
+
