@@ -9,25 +9,45 @@
 #'
 #' @author wactbprot
 #' @export
-#' @usage cdbIni(serverName="localhost", port="5984", DBName="", prot = "http", uname = "", pwd = "", newDBName = "", removeDBName = "", id  = "", dataList = list(), fileName = "", design = "", view = "", list = "", queryParam = "", encSub = "?", attachmentsWithPath=TRUE, digits = 7)
+#' @usage cdbIni(serverName="localhost",
+#' port="5984",
+#' prot = "http",
+#' DBName="",
+#' uname = "",
+#' pwd = "",
+#' newDBName = "",
+#' removeDBName = "",
+#' id  = "",
+#' fileName = "",
+#' design = "",
+#' view = "",
+#' list = "",
+#' queryParam = "",
+#' encSub = "?",
+#' count = 10,
+#' dataList = list(),
+#' attachmentsWithPath=TRUE,
+#' digits = 7)
 #' @param serverName server name
 #' @param port port
-#' @param DBName name of database
 #' @param prot name of the protocol default is http
+#' @param DBName name of database
 #' @param uname name of the user
 #' @param pwd password
 #' @param newDBName name of the database for cdbMakeDB()
 #' @param removeDBName name of the database to remove with cdbRemoveDB()
 #' @param id the document id to get, put, post or delete
-#' @param dataList a list containing data to post or update
 #' @param fileName for use in cdbAddAttachment
 #' @param design the name of the design used when asking a view or list
 #' @param view the name of the view to query
 #' @param list the name of the list to query
 #' @param queryParam additional query params
 #' @param encSub a character which is used as a replacement for chars who can not be converted by iconv
+#' @param count how many uuids should be returned by cdbGetUuidS()
+#' @param dataList a list containing data to post or update
 #' @param attachmentsWithPath effects the result of the function cdbAddAttachment in the way the variable is named
 #' @param digits digits kept at toJSON conversion
+#' @import RCurl RJSONIO bitops
 #' @export
 #' @examples
 #'\dontrun{
@@ -42,20 +62,21 @@
 
 cdbIni <- function(serverName   = "localhost",
                    port         = "5984",
-                   DBName       = "",
                    prot         = "http",
+                   DBName       = "",
                    uname        = "",
                    pwd          = "",
                    newDBName    = "",
                    removeDBName = "",
                    id           = "",
-                   dataList     = list(),
                    fileName     = "",
                    design       = "",
                    view         = "",
                    list         = "",
                    queryParam   = "",
                    encSub       = "?",
+                   count        = 10,
+                   dataList     = list(),
                    attachmentsWithPath = TRUE,
                    digits       = 7){
 
@@ -76,6 +97,7 @@ cdbIni <- function(serverName   = "localhost",
         view         = view,
         list         = list,
         queryParam   = queryParam,
+        count        = count,
         encSub       = encSub,
         error        = "",
         res          = "",
@@ -88,12 +110,17 @@ cdbIni <- function(serverName   = "localhost",
 
     cdb$opts <- function(cdb){
         if(cdb$uname != "" & cdb$pwd != ""){
-            opts <- curlOptions(header = FALSE,
+            opts <- curlOptions(header   = FALSE,
                                 httpauth = 1L,
-                                userpwd=paste(cdb$uname,":",cdb$pwd,sep=""))
+                                userpwd  = paste(cdb$uname,
+                                    ":",
+                                    cdb$pwd,
+                                    sep="")
+                                )
         }else{
             opts <- curlOptions(header = FALSE)
         }
+        
         return(opts)
     }
 
@@ -159,8 +186,7 @@ cdbIni <- function(serverName   = "localhost",
         res <- cdb$fromJSON(res)
 
         if(length(res$error) > 0){
-            stop(paste("local error:", cdb$error,
-                       "server error:", res$error,
+            stop(paste("server error:", res$error,
                        "server reason:", res$reason))
         }else{
             cdb$res <- res
@@ -180,6 +206,7 @@ cdbIni <- function(serverName   = "localhost",
             cdb <- chk.server.name(cdb)
             cdb <- chk.id(cdb)
             cdb <- chk.db.name(cdb)
+            cdb <- chk.doc.exists(cdb)
             cdb <- chk.file.name(cdb)
         }
 
@@ -213,8 +240,9 @@ cdbIni <- function(serverName   = "localhost",
 
         if(fname == "cdbGetUuidS"){
             cdb <- chk.server.name(cdb)
+            cdb <- chk.count(cdb)
         }
-
+        
         if(fname == "cdbGetView"){
             cdb <- chk.server.name(cdb)
             cdb <- chk.db.name(cdb)
@@ -246,6 +274,25 @@ cdbIni <- function(serverName   = "localhost",
     }
 
     ## ----------------------chk.fns-----------------v
+    chk.count <- function(cdb){
+        if(!is.numeric(cdb$count) | (cdb$count  < 1)){
+            
+            cdb$error <- paste(cdb$error,
+                               ";cdb$count is not numeric or smaller than 1")
+        }
+        return(cdb)
+
+    }
+    chk.doc.exists <- function(cdb){
+        res <- cdb$getDocRev(cdb)
+
+        if(is.na(res)){
+            cdb$error <- paste(cdb$error,
+                               ";document cdb$id does not exist")
+        }
+        return(cdb)
+     
+    }
     chk.newdb.name <- function(cdb){
         if(cdb$newDBName == ""){
             cdb$error <- paste(cdb$error,
@@ -264,16 +311,14 @@ cdbIni <- function(serverName   = "localhost",
 
     chk.rmdb.name <- function(cdb){
         if(cdb$removeDBName == ""){
-            cdb$error <- paste(cdb$error, "no cdb$removeDBName given")
+            cdb$error <- paste(cdb$error, ";no cdb$removeDBName given")
         }else{
             DBNames <- cdbListDB(cdb)$res
             DBexists <- which(DBNames == cdb$removeDBName)
 
             if(length(DBexists) == 0){
                 cdb$error <- paste(cdb$error,
-                                   " there is no DB called >",
-                                   cdb$removeDBName, "< on >",
-                                   cdb$serverName ,"<")
+                                   ";cdb$removeDBName does not exist")
             }
         }
         return(cdb)
@@ -315,9 +360,7 @@ cdbIni <- function(serverName   = "localhost",
     chk.file.name <- function(cdb){
         if( !(file.exists(cdb$fileName))){
             cdb$error <- paste(cdb$error,
-                               ";no cdb$fileName given or",
-                               cdb$fileName,
-                               "does not exist")
+                               ";no cdb$fileName given or does not exist")
         }
         return(cdb)
     }
