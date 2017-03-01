@@ -7,12 +7,13 @@
 #' one string e.g.  \code{"a=b&c=d&e=f"}.
 #' 
 #' @usage cdbGetList(cdb)
-#' @param cdb Beside the connection details (\code{cdb$port},\code{cdb$DAName}
+#' @param cdb Beside the connection details (\code{cdb$port},\code{cdb$DBName}
 #' ...) the \code{cdb$design} \code{cdb$view} and \code{cdb$list} is needed.
 #' @return
 #' 
 #' \item{cdb }{The result of the request is stored in cdb$res after converting
-#' the json answer into a list using fromJSON(). If a needed cdb (design, list,
+#' the json answer into a list using \code{cdb$fromJSON()}.
+#' If a needed cdb (design, list,
 #' view, ...) entry was not provided cdb$error says something about the R side.
 #' 
 #' }
@@ -48,7 +49,9 @@ cdbGetList <- function( cdb ){
     res <- getURL(utils::URLencode(adrString),
                   customrequest = "GET",
                   curl          = cdb$curl,
-                  .opts         = cdb$opts(cdb))
+                  .opts         = cdb$opts(cdb),
+                  .encoding       = cdb$serverEnc
+                  )
     
     return(cdb$checkRes(cdb,res))
     
